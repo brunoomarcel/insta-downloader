@@ -1,5 +1,5 @@
 services:
-  cliply:
+  creepfly:
     image: ghcr.io/brunoomarcel/insta-downloader:latest
     ports:
       - "3000:3000"

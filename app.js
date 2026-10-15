@@ -29,7 +29,7 @@ form.onsubmit = async (event) => {
     const response = await fetch('./api/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
     if (!response.ok) { const data = await response.json().catch(() => ({})); throw Error(data.message || `O servidor respondeu com erro (${response.status}).`); }
     const blob = await response.blob();
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'cliply-video.mp4'; link.click();
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'creepfly-video.mp4'; link.click();
     status.textContent = 'Download iniciado.'; status.className = 'status success';
   } catch (error) {
     status.textContent = error instanceof TypeError ? 'Não foi possível conectar ao servidor.' : (error.message || 'Não foi possível baixar este vídeo agora.');

@@ -38,7 +38,7 @@ app.post('/api/download', async (request, reply) => {
     const mediaUrl = await resolveMediaUrl(url);
     const mediaResponse = await fetch(mediaUrl, { signal: AbortSignal.timeout(120000) });
     if (!mediaResponse.ok || !mediaResponse.body) throw new Error(`Falha ao obter o vídeo (${mediaResponse.status}).`);
-    reply.header('Content-Type', mediaResponse.headers.get('content-type') || 'video/mp4').header('Content-Disposition', 'attachment; filename="cliply-video.mp4"').header('Cache-Control', 'no-store');
+    reply.header('Content-Type', mediaResponse.headers.get('content-type') || 'video/mp4').header('Content-Disposition', 'attachment; filename="creepfly-video.mp4"').header('Cache-Control', 'no-store');
     return reply.send(Readable.fromWeb(mediaResponse.body));
   } catch (error) { return reply.code(502).send({ message: error.message || 'Não foi possível obter este vídeo.' }); }
 });
