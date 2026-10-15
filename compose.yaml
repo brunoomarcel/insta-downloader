@@ -1,0 +1,7 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8080:3000"
+    environment:
+      YT_DLP_INSECURE_TLS: "true"
