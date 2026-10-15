@@ -6,3 +6,18 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+    networks:
+      - vpsnet
+    deploy:
+      labels:
+        traefik.enable: "true"
+        traefik.docker.network: vpsnet
+        traefik.http.routers.creepfly-app.entrypoints: websecure
+        traefik.http.routers.creepfly-app.rule: Host(`creepfly.stuffhub.com`)
+        traefik.http.routers.creepfly-app.tls: "true"
+        traefik.http.routers.creepfly-app.tls.certresolver: letsencryptresolver
+        traefik.http.services.creepfly-app.loadbalancer.server.port: "3000"
+
+networks:
+  vpsnet:
+    external: true
