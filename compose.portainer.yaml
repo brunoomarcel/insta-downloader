@@ -1,8 +1,6 @@
 services:
   cliply:
-    build: .
-    container_name: cliply
-    restart: unless-stopped
+    image: ghcr.io/brunoomarcel/insta-downloader:latest
     ports:
       - "3000:3000"
     environment:
