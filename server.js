@@ -40,7 +40,7 @@ function downloadYoutube(url) {
   return new Promise((resolve, reject) => {
     const directory = mkdtempSync(path.join(os.tmpdir(), 'creepfly-'));
     const output = path.join(directory, 'video.%(ext)s');
-    const args = ['--no-playlist', '--no-warnings', '--max-filesize', '100M', '-f', 'bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best', '--merge-output-format', 'mp4', '-o', output, url];
+    const args = ['--no-playlist', '--no-warnings', '--extractor-args', 'youtube:player_client=android', '--max-filesize', '100M', '-f', 'bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best', '--merge-output-format', 'mp4', '-o', output, url];
     const downloaderProcess = spawn('yt-dlp', args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let error = '';
     downloaderProcess.stderr.on('data', chunk => { error += chunk.toString(); });
