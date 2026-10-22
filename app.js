@@ -10,7 +10,6 @@ function platform(value) {
     const host = new URL(value).hostname.replace('www.', '');
     if (host === 'instagram.com' || host.endsWith('.instagram.com')) return 'Instagram';
     if (host === 'pinterest.com' || host.endsWith('.pinterest.com') || host === 'pin.it') return 'Pinterest';
-    if (host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be') return 'YouTube';
   } catch {}
   return null;
 }
@@ -24,7 +23,7 @@ form.onsubmit = async (event) => {
   event.preventDefault();
   const url = input.value.trim();
   const name = platform(url);
-  if (!name) { status.textContent = 'Insira um link público válido do Instagram, Pinterest ou YouTube.'; status.className = 'status error'; return; }
+  if (!name) { status.textContent = 'Insira um link público válido do Instagram ou Pinterest.'; status.className = 'status error'; return; }
   status.textContent = `Preparando vídeo do ${name}…`;
   try {
     const response = await fetch('./api/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });

@@ -1,7 +1,6 @@
 import Fastify from 'fastify';
 import { spawn, spawnSync } from 'node:child_process';
-import { createReadStream, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import os from 'node:os';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
@@ -13,7 +12,7 @@ const publicFiles = new Map([
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']], ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/manifest.webmanifest', ['manifest.webmanifest', 'application/manifest+json']], ['/sw.js', ['sw.js', 'text/javascript; charset=utf-8']], ['/icon.svg', ['icon.svg', 'image/svg+xml']]
 ]);
-const allowedHost = (value) => { try { const host = new URL(value).hostname.toLowerCase().replace(/^www\./, ''); return host === 'instagram.com' || host.endsWith('.instagram.com') || host === 'pinterest.com' || host.endsWith('.pinterest.com') || host === 'pin.it' || host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be'; } catch { return false; } };
+const allowedHost = (value) => { try { const host = new URL(value).hostname.toLowerCase().replace(/^www\./, ''); return host === 'instagram.com' || host.endsWith('.instagram.com') || host === 'pinterest.com' || host.endsWith('.pinterest.com') || host === 'pin.it'; } catch { return false; } };
 const hasYtDlp = () => {
   if (existsSync('/usr/local/bin/yt-dlp') || existsSync('/usr/bin/yt-dlp')) return true;
   const command = process.platform === 'win32' ? 'where.exe' : 'which';
@@ -36,37 +35,10 @@ function resolveMediaUrl(url) {
   });
 }
 
-function downloadYoutube(url) {
-  return new Promise((resolve, reject) => {
-    const directory = mkdtempSync(path.join(os.tmpdir(), 'creepfly-'));
-    const output = path.join(directory, 'video.%(ext)s');
-    const args = ['--no-playlist', '--no-warnings', '--extractor-args', 'youtube:player_client=android', '--max-filesize', '100M', '-f', 'bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best', '--merge-output-format', 'mp4', '-o', output, url];
-    const downloaderProcess = spawn('yt-dlp', args, { stdio: ['ignore', 'ignore', 'pipe'] });
-    let error = '';
-    downloaderProcess.stderr.on('data', chunk => { error += chunk.toString(); });
-    downloaderProcess.on('error', reason => { rmSync(directory, { recursive: true, force: true }); reject(reason); });
-    downloaderProcess.on('close', code => {
-      const file = path.join(directory, 'video.mp4');
-      if (code === 0 && existsSync(file)) resolve({ directory, file });
-      else { rmSync(directory, { recursive: true, force: true }); reject(new Error(error.slice(-500) || 'Não foi possível baixar o vídeo.')); }
-    });
-  });
-}
-
 app.post('/api/download', async (request, reply) => {
   const url = typeof request.body?.url === 'string' ? request.body.url.trim() : '';
-  if (!allowedHost(url)) return reply.code(422).send({ message: 'Use um link público do Instagram, Pinterest ou YouTube.' });
+  if (!allowedHost(url)) return reply.code(422).send({ message: 'Use um link público do Instagram ou Pinterest.' });
   if (!hasYtDlp()) return reply.code(503).send({ message: 'O yt-dlp ainda não está instalado no servidor.' });
-  if (new URL(url).hostname.toLowerCase().includes('youtube.com') || new URL(url).hostname.toLowerCase() === 'youtu.be') {
-    let downloaded;
-    try {
-      downloaded = await downloadYoutube(url);
-      const stream = createReadStream(downloaded.file);
-      stream.on('close', () => rmSync(downloaded.directory, { recursive: true, force: true }));
-      reply.header('Content-Type', 'video/mp4').header('Content-Disposition', 'attachment; filename="creepfly-video.mp4"').header('Cache-Control', 'no-store');
-      return reply.send(stream);
-    } catch (error) { return reply.code(502).send({ message: error.message || 'Não foi possível obter este vídeo.' }); }
-  }
   try {
     const mediaUrl = await resolveMediaUrl(url);
     const mediaResponse = await fetch(mediaUrl, { signal: AbortSignal.timeout(120000) });
