@@ -30,11 +30,12 @@ function cookieFileFromEnvironment() {
   return cookieFile;
 }
 
-function resolveMediaUrl(url) {
+function runYtDlp(url, extraArgs = []) {
   return new Promise((resolve, reject) => {
     const isInstagram = new URL(url).hostname.toLowerCase().includes('instagram.com');
     const args = ['--get-url', '--no-playlist', '--no-warnings', '--max-filesize', '100M', '-f', 'best[ext=mp4]/best', '--retries', '3', '--fragment-retries', '3'];
     if (isInstagram) args.push('--impersonate', 'chrome', '--add-header', 'Referer:https://www.instagram.com/');
+    args.push(...extraArgs);
     const runtimeCookieFile = cookieFileFromEnvironment();
     const cookieFile = runtimeCookieFile || path.join(root, 'cookies', 'instagram.txt');
     if (existsSync(cookieFile)) args.push('--cookies', cookieFile);
@@ -57,6 +58,16 @@ function resolveMediaUrl(url) {
       reject(new Error(error.slice(-500) || 'Não foi possível encontrar o vídeo.'));
     });
   });
+}
+
+async function resolveMediaUrl(url) {
+  try {
+    return await runYtDlp(url);
+  } catch (error) {
+    const isInstagram = new URL(url).hostname.toLowerCase().includes('instagram.com');
+    if (!isInstagram || !/logged-in|cookies-from-browser|authentication|empty media response/i.test(error.message)) throw error;
+    return runYtDlp(url, ['--extractor-args', 'instagram:app_id=ios']);
+  }
 }
 
 app.post('/api/download', async (request, reply) => {
