@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
+import { resolveWithFallback, publicDownloadError } from './download-policy.js';
 
 const app = Fastify({ logger: true, bodyLimit: 16 * 1024 });
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -52,22 +53,13 @@ function runYtDlp(url, extraArgs = []) {
       if (runtimeCookieFile && existsSync(runtimeCookieFile)) unlinkSync(runtimeCookieFile);
       const mediaUrl = output.trim().split(/\r?\n/).filter(Boolean)[0];
       if (code === 0 && mediaUrl) return resolve(mediaUrl);
-      if (isInstagram && /logged-in|cookies-from-browser|authentication/i.test(error)) {
-        return reject(new Error('O Instagram exige uma sessão autorizada. Configure YT_DLP_COOKIES_B64 ou monte cookies/instagram.txt no servidor.'));
-      }
-      reject(new Error(error.slice(-500) || 'Não foi possível encontrar o vídeo.'));
+      reject(new Error(error || 'Não foi possível encontrar o vídeo.'));
     });
   });
 }
 
 async function resolveMediaUrl(url) {
-  try {
-    return await runYtDlp(url);
-  } catch (error) {
-    const isInstagram = new URL(url).hostname.toLowerCase().includes('instagram.com');
-    if (!isInstagram || !/logged-in|cookies-from-browser|authentication|empty media response/i.test(error.message)) throw error;
-    return runYtDlp(url, ['--extractor-args', 'instagram:app_id=ios']);
-  }
+  return resolveWithFallback(url, runYtDlp);
 }
 
 app.post('/api/download', async (request, reply) => {
@@ -80,7 +72,7 @@ app.post('/api/download', async (request, reply) => {
     if (!mediaResponse.ok || !mediaResponse.body) throw new Error(`Falha ao obter o vídeo (${mediaResponse.status}).`);
     reply.header('Content-Type', mediaResponse.headers.get('content-type') || 'video/mp4').header('Content-Disposition', 'attachment; filename="creepfly-video.mp4"').header('Cache-Control', 'no-store');
     return reply.send(Readable.fromWeb(mediaResponse.body));
-  } catch (error) { return reply.code(502).send({ message: error.message || 'Não foi possível obter este vídeo.' }); }
+  } catch (error) { return reply.code(502).send({ message: publicDownloadError(error) }); }
 });
 
 app.listen({ host: '0.0.0.0', port: Number(process.env.PORT || 3000) }).catch(error => { app.log.error(error); process.exit(1); });
