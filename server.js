@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
@@ -20,18 +21,41 @@ const hasYtDlp = () => {
 };
 for (const [route, [file, type]] of publicFiles) app.get(route, async (_request, reply) => reply.type(type).send(readFileSync(path.join(root, file))));
 
+function cookieFileFromEnvironment() {
+  const encodedCookies = process.env.YT_DLP_COOKIES_B64?.trim();
+  if (!encodedCookies) return null;
+
+  const cookieFile = path.join(root, 'cookies', `.instagram-runtime-${randomUUID()}.txt`);
+  writeFileSync(cookieFile, Buffer.from(encodedCookies, 'base64'), { mode: 0o600 });
+  return cookieFile;
+}
+
 function resolveMediaUrl(url) {
   return new Promise((resolve, reject) => {
-    const args = ['--get-url', '--no-playlist', '--no-warnings', '--max-filesize', '100M', '-f', 'best'];
-    if (new URL(url).hostname.toLowerCase().includes('instagram.com')) args.push('--impersonate', 'chrome');
-    const cookieFile = path.join(root, 'cookies', 'instagram.txt');
+    const isInstagram = new URL(url).hostname.toLowerCase().includes('instagram.com');
+    const args = ['--get-url', '--no-playlist', '--no-warnings', '--max-filesize', '100M', '-f', 'best[ext=mp4]/best', '--retries', '3', '--fragment-retries', '3'];
+    if (isInstagram) args.push('--impersonate', 'chrome', '--add-header', 'Referer:https://www.instagram.com/');
+    const runtimeCookieFile = cookieFileFromEnvironment();
+    const cookieFile = runtimeCookieFile || path.join(root, 'cookies', 'instagram.txt');
     if (existsSync(cookieFile)) args.push('--cookies', cookieFile);
     if (globalThis.process.env.YT_DLP_INSECURE_TLS === 'true') args.push('--no-check-certificates');
     args.push(url);
     const downloaderProcess = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let output = ''; let error = '';
     downloaderProcess.stdout.on('data', chunk => { output += chunk.toString(); }); downloaderProcess.stderr.on('data', chunk => { error += chunk.toString(); });
-    downloaderProcess.on('error', reject); downloaderProcess.on('close', code => { const mediaUrl = output.trim().split(/\r?\n/).filter(Boolean)[0]; if (code === 0 && mediaUrl) resolve(mediaUrl); else reject(new Error(error.slice(-500) || 'Não foi possível encontrar o vídeo.')); });
+    downloaderProcess.on('error', errorObject => {
+      if (runtimeCookieFile && existsSync(runtimeCookieFile)) unlinkSync(runtimeCookieFile);
+      reject(errorObject);
+    });
+    downloaderProcess.on('close', code => {
+      if (runtimeCookieFile && existsSync(runtimeCookieFile)) unlinkSync(runtimeCookieFile);
+      const mediaUrl = output.trim().split(/\r?\n/).filter(Boolean)[0];
+      if (code === 0 && mediaUrl) return resolve(mediaUrl);
+      if (isInstagram && /logged-in|cookies-from-browser|authentication/i.test(error)) {
+        return reject(new Error('O Instagram exige uma sessão autorizada. Configure YT_DLP_COOKIES_B64 ou monte cookies/instagram.txt no servidor.'));
+      }
+      reject(new Error(error.slice(-500) || 'Não foi possível encontrar o vídeo.'));
+    });
   });
 }
 

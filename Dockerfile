@@ -3,7 +3,7 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
     && apt-get -o Acquire::Retries=5 update \
     && apt-get install -y --no-install-recommends ffmpeg python3 python3-pip ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-RUN pip3 install --break-system-packages --no-cache-dir "yt-dlp[default,curl-cffi]"
+RUN pip3 install --break-system-packages --no-cache-dir --upgrade "yt-dlp[default,curl-cffi]"
 WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev

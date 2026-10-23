@@ -6,6 +6,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      # Configure uma sessão autorizada no Portainer usando YT_DLP_COOKIES_B64.
     networks:
       - vpsnet
     deploy:
