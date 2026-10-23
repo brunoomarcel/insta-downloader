@@ -2,6 +2,17 @@ const form = document.querySelector('#downloadForm');
 const input = document.querySelector('#url');
 const status = document.querySelector('#status');
 const paste = document.querySelector('#paste');
+const clear = document.querySelector('#clear');
+const syncClear = () => { clear.hidden = input.value.length === 0; };
+input.addEventListener('input', syncClear);
+addEventListener('pageshow', syncClear);
+clear.onclick = () => {
+  input.value = '';
+  status.textContent = '';
+  status.className = 'status';
+  syncClear();
+  input.focus();
+};
 const install = document.querySelector('#install');
 let deferredPrompt;
 
@@ -15,7 +26,7 @@ function platform(value) {
 }
 
 paste.onclick = async () => {
-  try { input.value = await navigator.clipboard.readText(); input.focus(); status.textContent = 'Link colado.'; }
+  try { input.value = await navigator.clipboard.readText(); syncClear(); input.focus(); status.textContent = 'Link colado.'; }
   catch { input.focus(); status.textContent = 'Cole o link usando o teclado.'; }
 };
 
